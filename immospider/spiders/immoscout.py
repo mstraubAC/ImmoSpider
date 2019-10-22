@@ -29,6 +29,8 @@ class ImmoscoutSpider(scrapy.Spider):
 
                 #TODO: On result pages with just a single result resultlistEntry is not a list, but a dictionary.
                 #TODO: So extracting data will fail.
+                numberOfHits = int(immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["@numberOfHits"])
+                print("Number of hits: %i" % ( numberOfHits, ))
                 for result in immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["resultlistEntry"]:
 
                     item = ImmoscoutItem()
@@ -38,6 +40,12 @@ class ImmoscoutSpider(scrapy.Spider):
                     # print(data)
 
                     item['immo_id'] = data['@id']
+                    for key in data:
+                        print(key)
+                    item['createdAtDate'] = result['@creation']
+                    item['modifiedAtDate'] = result['@modification']
+                    item['publishedAtDate'] = result['@publishDate']
+                    item['hasNewFlag'] = result['hasNewFlag']
                     item['url'] = response.urljoin("/expose/" + str(data['@id']))
                     item['title'] = data['title']
                     address = data['address']
@@ -45,12 +53,20 @@ class ImmoscoutSpider(scrapy.Spider):
                         item['address'] = address['street'] + " " + address['houseNumber']
                     except:
                         item['address'] = None    
+                    if 'newHomeBuilder' in result:
+                        item['newHomeBuilder'] = result['newHomeBuilder']
+                    else:
+                        item['newHomeBuilder'] = None
+                    if 'floorplan' in data:
+                        item['floorplan'] = data['floorplan']
+                    else:
+                        item['floorplan'] = None
                     item['city'] = address['city']
                     item['zip_code'] = address['postcode']
                     item['district'] = address['quarter']
 
                     item["rent"] = data["price"]["value"]
-                    item["sqm"] = data["livingSpace"]
+                    item["livingSpace"] = data["livingSpace"] # Wohnflaeche
                     item["rooms"] = data["numberOfRooms"]
 
                     if "calculatedPrice" in data:
@@ -64,7 +80,7 @@ class ImmoscoutSpider(scrapy.Spider):
                     if "privateOffer" in data:
                         item["private"] = data["privateOffer"]
                     if "plotArea" in data:
-                        item["area"] = data["plotArea"]
+                        item["plotArea"] = data["plotArea"]
                     if "cellar" in data:
                         item["cellar"] = data["cellar"]       
 
