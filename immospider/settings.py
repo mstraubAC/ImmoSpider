@@ -18,7 +18,7 @@ NEWSPIDER_MODULE = 'immospider.spiders'
 LOG_STDOUT = True
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'immospider (+http://www.yourdomain.com)'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -61,7 +61,7 @@ ROBOTSTXT_OBEY = True
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
 EXTENSIONS = {
-     'immospider.extensions.SendMail': 100,	
+#     'immospider.extensions.SendMail': 100,	
 #    'scrapy.extensions.telnet.TelnetConsole': None,
 }
 
