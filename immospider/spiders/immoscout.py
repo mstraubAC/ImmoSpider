@@ -25,85 +25,89 @@ class ImmoscoutSpider(scrapy.Spider):
         for line in response.xpath(self.script_xpath).extract_first().split('\n'):
             if line.strip().startswith('resultListModel'):
                 immo_json = line.strip()
-                immo_json = json.loads(immo_json[17:-1])
+                try:
+                    immo_json = json.loads(immo_json[17:-1])
+    
+                    #TODO: On result pages with just a single result resultlistEntry is not a list, but a dictionary.
+                    #TODO: So extracting data will fail.
+                    numberOfHits = int(immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["@numberOfHits"])
+                    print("Number of hits: %i" % ( numberOfHits, ))
+                    for result in immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["resultlistEntry"]:
+    
+                        item = ImmoscoutItem()
+    
+                        data = result["resultlist.realEstate"]
+    
+                        # print(data)
+    
+                        item['immo_id'] = data['@id']
+                        item['createdAtDate'] = result['@creation']
+                        item['modifiedAtDate'] = result['@modification']
+                        item['publishedAtDate'] = result['@publishDate']
+                        item['hasNewFlag'] = result['hasNewFlag']
+                        item['url'] = response.urljoin("/expose/" + str(data['@id']))
+                        item['title'] = data['title']
+                        address = data['address']
+                        try:
+                            item['address'] = address['street'] + " " + address['houseNumber']
+                        except:
+                            item['address'] = None    
+                        if 'newHomeBuilder' in result:
+                            item['newHomeBuilder'] = result['newHomeBuilder']
+                        else:
+                            item['newHomeBuilder'] = None
+                        if 'floorplan' in data:
+                            item['floorplan'] = data['floorplan']
+                        else:
+                            item['floorplan'] = None
+                        item['city'] = address['city']
+                        item['zip_code'] = address['postcode']
+                        item['district'] = address['quarter']
+    
+                        item["rent"] = data["price"]["value"]
+                        item["livingSpace"] = data["livingSpace"] # Wohnflaeche
+                        item["rooms"] = data["numberOfRooms"]
+    
+                        if "calculatedPrice" in data:
+                            item["extra_costs"] = (data["calculatedPrice"]["value"] - data["price"]["value"])
+                        if "builtInKitchen" in data:
+                            item["kitchen"] = data["builtInKitchen"]
+                        if "balcony" in data:
+                            item["balcony"] = data["balcony"]
+                        if "garden" in data:
+                            item["garden"] = data["garden"]
+                        if "privateOffer" in data:
+                            item["private"] = data["privateOffer"]
+                        if "plotArea" in data:
+                            item["plotArea"] = data["plotArea"]
+                        if "cellar" in data:
+                            item["cellar"] = data["cellar"]       
+    
+                        try:
+                            contact = data['contactDetails']
+                            item['contact_name'] = contact['firstname'] + " " + contact["lastname"]
+                        except:
+                            item['contact_name'] = None
+    
+                        try:
+                            item['media_count'] = len(data['galleryAttachments']['attachment'])
+                        except:
+                            item['media_count'] = 0
+    
+                        try:
+                            item['lat'] = address['wgs84Coordinate']['latitude']
+                            item['lng'] = address['wgs84Coordinate']['longitude']
+                        except Exception as e:
+                            # print(e)
+                            item['lat'] = None
+                            item['lng'] = None 
+                        
+                        yield item
 
-                #TODO: On result pages with just a single result resultlistEntry is not a list, but a dictionary.
-                #TODO: So extracting data will fail.
-                numberOfHits = int(immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["@numberOfHits"])
-                print("Number of hits: %i" % ( numberOfHits, ))
-                for result in immo_json["searchResponseModel"]["resultlist.resultlist"]["resultlistEntries"][0]["resultlistEntry"]:
+                except Exception as e:
+                    print("There was a general error: %s" % ( e, ))
+                    #print("!!!! GENERAL ERROR !!!!"
 
-                    item = ImmoscoutItem()
-
-                    data = result["resultlist.realEstate"]
-
-                    # print(data)
-
-                    item['immo_id'] = data['@id']
-                    for key in data:
-                        print(key)
-                    item['createdAtDate'] = result['@creation']
-                    item['modifiedAtDate'] = result['@modification']
-                    item['publishedAtDate'] = result['@publishDate']
-                    item['hasNewFlag'] = result['hasNewFlag']
-                    item['url'] = response.urljoin("/expose/" + str(data['@id']))
-                    item['title'] = data['title']
-                    address = data['address']
-                    try:
-                        item['address'] = address['street'] + " " + address['houseNumber']
-                    except:
-                        item['address'] = None    
-                    if 'newHomeBuilder' in result:
-                        item['newHomeBuilder'] = result['newHomeBuilder']
-                    else:
-                        item['newHomeBuilder'] = None
-                    if 'floorplan' in data:
-                        item['floorplan'] = data['floorplan']
-                    else:
-                        item['floorplan'] = None
-                    item['city'] = address['city']
-                    item['zip_code'] = address['postcode']
-                    item['district'] = address['quarter']
-
-                    item["rent"] = data["price"]["value"]
-                    item["livingSpace"] = data["livingSpace"] # Wohnflaeche
-                    item["rooms"] = data["numberOfRooms"]
-
-                    if "calculatedPrice" in data:
-                        item["extra_costs"] = (data["calculatedPrice"]["value"] - data["price"]["value"])
-                    if "builtInKitchen" in data:
-                        item["kitchen"] = data["builtInKitchen"]
-                    if "balcony" in data:
-                        item["balcony"] = data["balcony"]
-                    if "garden" in data:
-                        item["garden"] = data["garden"]
-                    if "privateOffer" in data:
-                        item["private"] = data["privateOffer"]
-                    if "plotArea" in data:
-                        item["plotArea"] = data["plotArea"]
-                    if "cellar" in data:
-                        item["cellar"] = data["cellar"]       
-
-                    try:
-                        contact = data['contactDetails']
-                        item['contact_name'] = contact['firstname'] + " " + contact["lastname"]
-                    except:
-                        item['contact_name'] = None
-
-                    try:
-                        item['media_count'] = len(data['galleryAttachments']['attachment'])
-                    except:
-                        item['media_count'] = 0
-
-                    try:
-                        item['lat'] = address['wgs84Coordinate']['latitude']
-                        item['lng'] = address['wgs84Coordinate']['longitude']
-                    except Exception as e:
-                        # print(e)
-                        item['lat'] = None
-                        item['lng'] = None 
-               
-                    yield item
 
         next_page_list = response.xpath(self.next_xpath).extract()
         if next_page_list:
