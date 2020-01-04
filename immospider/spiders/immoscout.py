@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import scrapy
+from scrapy.http.request import Request
 import json
 from immospider.items import ImmoscoutItem
 
@@ -13,10 +14,59 @@ class ImmoscoutSpider(scrapy.Spider):
     # The immoscout search results are stored as json inside their javascript. This makes the parsing very easy.
     # I learned this trick from https://github.com/balzer82/immoscraper/blob/master/immoscraper.ipynb .
     script_xpath = './/script[contains(., "IS24.resultList")]'
+    details_xpath = './/script[contains(., "keyValues")]'
+    expose_xpath = './/script[contains(., "IS24.expose")]'
     next_xpath = '//div[@id = "pager"]/div/a/@href'
 
     def start_requests(self):
         yield scrapy.Request(self.url)
+
+    def parse_expose(self, response):
+        for line in response.xpath(self.details_xpath).extract_first().split('\n'):
+            if line.strip().startswith('var keyValues'):
+                details_json = line.strip()
+                details_json = details_json[16:-1]
+                details = json.loads(details_json)
+
+                item = response.meta.get('thisItem')
+                if 'obj_picturecount' in details:
+                    item['pictureCount'] = details['obj_picturecount']
+                if 'obj_pricetrend' in details:
+                    item['priceTrend'] = details['obj_pricetrend']
+                if 'obj_rented' in details:
+                    item['rented'] = details['obj_rented']
+    
+                if 'obj_yearConstructed' in details:
+                    item['yearConstructed'] = details['obj_yearConstructed']
+                if 'obj_condition' in details:
+                    item['condition'] = details['obj_condition']
+                if 'obj_interiorQuality' in details:
+                    item['interiorQuality'] = details['obj_interiorQuality']
+                if 'obj_numberOfFloors' in details:
+                    item['numberOfFloors'] = details['obj_numberOfFloors']
+                if 'obj_buildingType' in details:
+                    item['buildingType'] = details['obj_buildingType']
+
+                if 'obj_heatingType' in details:
+                    item['heatingType'] = details['obj_heatingType']
+                if 'obj_firingType' in details:
+                    item['heatingFiringType'] = details['obj_firingType']
+                if 'obj_energyEfficiencyClass' in details:
+                    item['energyEfficiencyClass'] = details['obj_energyEfficiencyClass']
+    
+                if 'obj_noParkSpaces' in details:
+                    item['parkSpaces'] = details['obj_noParkSpaces']
+
+                if 'obj_telekomDownloadSpeed' in details: 
+                    item['telekomDownloadSpeed'] = details['obj_telekomDownloadSpeed']
+                if 'obj_telekomUploadSpeed' in details: 
+                    item['telekomUploadSpeed'] = details['obj_telekomUploadSpeed']
+                if 'obj_telekomTechnology' in details: 
+                    item['telekomTechnology'] = details['obj_telekomInternetTechnology']
+                if 'obj_telekomInternetType' in details: 
+                    item['telekomInternetType'] = details['obj_telekomInternetType']
+
+                yield item
 
     def parse(self, response):
 
@@ -102,7 +152,8 @@ class ImmoscoutSpider(scrapy.Spider):
                             item['lat'] = None
                             item['lng'] = None 
                         
-                        yield item
+#                        yield item
+                        yield Request(item['url'], callback=self.parse_expose, meta={'thisItem': item})
 
                 except Exception as e:
                     print("There was a general error: %s" % ( e, ))
